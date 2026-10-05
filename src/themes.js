@@ -2,7 +2,7 @@
 
 import { fetchJson } from './util.js';
 
-const SHIKI_URL = 'https://esm.sh/shiki@1.24.0';
+const SHIKI_URL = 'https://esm.sh/shiki@4.5.0';
 
 // Start downloading Shiki immediately, but through a dynamic import so a CDN
 // failure rejects a promise the boot orchestrator can catch. A static import
@@ -34,7 +34,7 @@ export const COMMENT_STYLE_SCOPES = [
 ];
 
 async function bootstrap(builtinThemes) {
-  const { createHighlighter, bundledThemes } = await shikiModule;
+  const { createHighlighter, createJavaScriptRegexEngine, bundledThemes } = await shikiModule;
   // createHighlighter rejects as a whole on a single unknown name, so one typo
   // in _builtin.json would stop the app from starting. Drop unknown names in
   // place: the caller's array is the list it hands to the catalog and the
@@ -45,7 +45,16 @@ async function bootstrap(builtinThemes) {
     const kept = builtinThemes.filter(name => Object.hasOwn(bundledThemes, name));
     builtinThemes.splice(0, builtinThemes.length, ...kept);
   }
-  const h = await createHighlighter({ themes: builtinThemes, langs: [] });
+  // The JavaScript regex engine converts TextMate grammars to native RegExp, so
+  // no Oniguruma WASM is fetched or compiled (the CSP has no
+  // 'wasm-unsafe-eval'). Passing `engine` keeps Shiki from ever importing its
+  // default Oniguruma engine's WASM. Strict mode (the default) throws on a
+  // pattern it cannot convert instead of silently mis-highlighting.
+  const h = await createHighlighter({
+    themes: builtinThemes,
+    langs: [],
+    engine: createJavaScriptRegexEngine(),
+  });
   for (const name of builtinThemes) loadedThemes.add(name);
   return h;
 }
@@ -83,9 +92,11 @@ async function registerTheme(id, raw) {
   const h = await getHighlighter();
   // CRITICAL: the filename stem / upload slug is canonical. Override the
   // embedded "name" so URL state, localStorage, and Shiki all agree on the same
-  // id. Clone first: Shiki's normalizeTheme aliases tokenColors as `settings`
-  // and unshifts a global rule into it, which would corrupt the caller's
-  // persisted/exported object.
+  // id. Clone first: Shiki's normalizeTheme copies only the top level, then
+  // reuses the caller's tokenColors array as `settings`, unshifts a global
+  // rule into it, and rewrites non-hex editor/terminal colors in the shared
+  // `colors` object, which would corrupt the caller's persisted/exported
+  // object.
   await h.loadTheme(structuredClone({ ...raw, name: id }));
   rawTypes.set(id, raw.type);
   loadedThemes.add(id);

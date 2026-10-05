@@ -60,7 +60,7 @@ A manifest at `data/languages/<id>.json`:
 }
 ```
 
-…and the sample code itself at `data/samples/<id>.txt`. `shikiLang` has to be a language [Shiki knows](https://shiki.style/languages). A good sample is a small, real program (roughly 50–100 lines) that shows off the language's syntax — not a pile of features glued together.
+…and the sample code itself at `data/samples/<id>.txt`. `shikiLang` has to be a language [Shiki knows](https://shiki.style/languages) that its [JavaScript regex engine supports](https://shiki.style/references/engine-js-compat) (Muse doesn't load Oniguruma). A good sample is a small, real program (roughly 50–100 lines) that shows off the language's syntax — not a pile of features glued together.
 
 After adding any file, regenerate the catalog:
 

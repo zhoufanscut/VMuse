@@ -72,9 +72,10 @@ that re-render. That's the whole app.
 
 ## Rendering
 
-- **Highlighter** — the Shiki instance (`src/themes.js`), created once and reused via the
-  cached `getHighlighter()` promise. Loaded from `esm.sh` through a dynamic `import()` so a CDN
-  failure surfaces as "Failed to start".
+- **Highlighter** — the Shiki instance (`src/themes.js`, pinned `shiki@4.5.0`), created once and
+  reused via the cached `getHighlighter()` promise. Loaded from `esm.sh` through a dynamic
+  `import()` so a CDN failure surfaces as "Failed to start". Runs Shiki's JavaScript regex
+  engine, so no Oniguruma WASM is loaded.
 - **Comment-style variant** — the per-theme copy Shiki actually renders with
   (`<id>__muse-comments-italic` / `-normal`, plus a generation suffix after a re-upload), built
   by `ensureCommentStyleTheme` so the "Italic comments" toggle wins over the theme's own rule.

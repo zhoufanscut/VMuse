@@ -10,7 +10,7 @@ The nice part of the data layout: every contribution is a new file in `data/`. Y
 
 **Theme** — add `data/themes/<id>.json`, any valid VSCode theme JSON with hex colors only (Muse writes them into inline styles, so CI rejects anything else) and, ideally, a `"type": "light"` or `"dark"`. A screenshot in the PR helps me see what it looks like. The filename id shouldn't collide with a Shiki built-in theme name. Only add a theme whose license allows sharing it, and add its entry to [`data/themes/LICENSES.md`](data/themes/LICENSES.md) in the same PR: the upstream URL pinned to a commit, the copyright line, the license (full text, or a link for GPL-family ones), and whether you changed the file and how.
 
-**Language** — add `data/languages/<id>.json` plus `data/samples/<id>.txt`. Keep the sample a small, self-contained, real-looking program (~50–100 lines) that tokenizes cleanly, and make `shikiLang` a real Shiki language id.
+**Language** — add `data/languages/<id>.json` plus `data/samples/<id>.txt`. Keep the sample a small, self-contained, real-looking program (~50–100 lines) that tokenizes cleanly, and make `shikiLang` a real Shiki language id. Muse highlights with Shiki's JavaScript regex engine (no Oniguruma), so the grammar must be supported there too: check it is listed as OK in Shiki's [JS engine compatibility table](https://shiki.style/references/engine-js-compat), then serve the site locally, pick your language, and make sure the preview renders with no errors in the browser console.
 
 One small reserved-word note: ids starting with `custom-` belong to the in-browser uploader, so don't use that prefix for committed files.
 

@@ -2,11 +2,12 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <!-- script-src allows esm.sh (Shiki module) + 'wasm-unsafe-eval' (oniguruma WASM);
-       connect-src allows esm.sh for the WASM fetch. style/font-src stay https-wide
+  <!-- script-src allows esm.sh (Shiki and its grammar/theme modules, all loaded via
+       import()). Shiki runs its JavaScript regex engine, so no WASM: no
+       'wasm-unsafe-eval' and no esm.sh in connect-src. style/font-src stay https-wide
        (no host allowlist) so any https font CDN works; 'unsafe-inline' is required
        because Shiki emits inline style attributes. Update when adding new CDNs. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' data:; connect-src 'self' https://esm.sh; base-uri 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline' https:; font-src 'self' https: data:; img-src 'self' data:; connect-src 'self'; base-uri 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Muse — coding font × theme × language</title>
   <meta name="description" content="Preview a coding font, color theme, and programming language together, live in the browser. Mix and match, share a link, and export the setup to VS Code.">

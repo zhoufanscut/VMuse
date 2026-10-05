@@ -52,10 +52,11 @@ function buildPackageJson(themeId, dark) {
   return JSON.stringify(pkg, null, 2);
 }
 
-// Shiki's normalizeTheme swaps non-hex colors (one-light's "white",
-// "inherit") for "#000000NN" placeholders and records the originals in
-// `colorReplacements`, which it applies at render time. VS Code knows nothing
-// of that map, so put the original values back before the key is dropped.
+// Shiki's normalizeTheme swaps non-hex colors (one-light's "inherit", or a
+// named color like "white") for "#000000NN" placeholders and records the
+// originals in `colorReplacements`, which it applies at render time. VS Code
+// knows nothing of that map, so put the original values back before the key
+// is dropped.
 // Lookup mirrors Shiki's (lowercased key). Returns clones; never mutates.
 function restoreColor(val, map) {
   if (typeof val !== 'string') return val;
