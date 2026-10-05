@@ -1,5 +1,7 @@
 # Muse
 
+**Try it:** https://zhoufanscut.github.io/Muse/
+
 Muse lets you preview a coding font, a color theme, and a programming language together, live in the browser. Pick a font, pick a theme, pick a language — and see how the three actually look as a set before you commit to them in your editor.
 
 It's a toy I built for myself, because I kept agonizing over editor fonts and themes and wanted a quick way to try combinations without installing anything. If you find it fun or useful too, that makes me happy.
@@ -10,7 +12,7 @@ No build step, no `npm install`, no backend — just HTML, a handful of ES modul
 
 - **Mix and match** — any font × theme × language combo, rendered instantly.
 - **Land on a surprise** — your first visit picks a random font and theme, so you start somewhere you didn't expect. Your choices stick after that.
-- **Use fonts you already have** — Muse checks for ~50 common coding fonts on your machine and lists the ones it finds, no download needed.
+- **Use fonts you already have** — Muse checks for ~40 common coding fonts on your machine and lists the ones it finds, no download needed.
 - **Add your own font** — paste a CSS URL or an `@font-face` snippet in the *Add Font* dialog. Saved locally, just for you.
 - **Add your own theme** — drop in any VSCode theme JSON. Also saved locally.
 - **Tweak the details** — size, ligatures, italic comments.
@@ -32,12 +34,11 @@ Everything lives in `data/` as plain JSON. Adding something is just dropping in 
   "name": "Fira Code",
   "stack": "'Fira Code', monospace",
   "cssUrl": "https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap",
-  "ligatures": true,
   "credits": "https://github.com/tonsky/FiraCode"
 }
 ```
 
-The filename and the `id` field have to match — that's the canonical id used in URLs. Point `cssUrl` at a Google Fonts or Fontsource stylesheet. `ligatures`, `weights`, and `credits` are optional.
+The filename and the `id` field have to match — that's the canonical id used in URLs. Point `cssUrl` at a Google Fonts stylesheet (or a version-pinned CDN one) and ask for italic and bold too when the family has them: `family=X:ital,wght@0,400;0,700;1,400;1,700`. `cssUrl` and `credits` are optional (https URLs).
 
 ### A theme — one file
 
@@ -75,7 +76,7 @@ CI does this automatically on push, so in a PR you can skip it — it's just han
 python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000. Any static server works; `file://` does **not** (the browser blocks `fetch()` for modules and data). Node 18+ if you want to run the rebuild script.
+Then open http://localhost:8000. Any static server works; `file://` does **not** (the browser blocks `fetch()` for modules and data). Node 18+ if you want to run the rebuild script (CI uses 24).
 
 ## How it's built
 

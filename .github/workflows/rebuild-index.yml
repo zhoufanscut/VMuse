@@ -3,7 +3,11 @@ name: Rebuild data index
 on:
   push:
     branches: [main]
+    # data/_index.json is listed so a hand edit to it gets regenerated. The
+    # bot's own commit cannot loop: pushes made with GITHUB_TOKEN start no
+    # workflow runs.
     paths:
+      - 'data/_index.json'
       - 'data/fonts/**'
       - 'data/themes/**'
       - 'data/languages/**'
@@ -22,26 +26,52 @@ on:
       - '.github/workflows/rebuild-index.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  rebuild:
+  # PRs run contributor code, so they get a read-only token that is not
+  # kept in .git/config.
+  check:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '24' }
 
       - name: Validate data files
         run: node scripts/rebuild-index.mjs --check
 
-      - name: Regenerate index (push to main only)
-        if: github.event_name == 'push'
+  rebuild:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # One run at a time per branch; a newer queued run replaces an older one.
+    # Each run builds the branch tip, so the last one covers every push.
+    concurrency:
+      group: rebuild-index-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      # Check out the branch tip, not the pushed commit: if main moved on
+      # since (e.g. a code-only push, which starts no run), pushing from the
+      # older commit would be rejected and leave the index stale.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: '24' }
+
+      - name: Validate data files
+        run: node scripts/rebuild-index.mjs --check
+
+      - name: Regenerate index
         run: node scripts/rebuild-index.mjs
 
-      - name: Commit regenerated index (push to main only)
-        if: github.event_name == 'push'
-        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5
+      - name: Commit regenerated index
+        uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7.2.0
         with:
           commit_message: 'chore: regenerate data/_index.json'
           file_pattern: data/_index.json

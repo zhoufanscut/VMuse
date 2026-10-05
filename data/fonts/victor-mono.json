@@ -2,8 +2,6 @@
   "id": "victor-mono",
   "name": "Victor Mono",
   "stack": "'Victor Mono', monospace",
-  "cssUrl": "https://fonts.googleapis.com/css2?family=Victor+Mono:wght@400;700&display=swap",
-  "ligatures": false,
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=Victor+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://github.com/rubjo/victor-mono"
 }

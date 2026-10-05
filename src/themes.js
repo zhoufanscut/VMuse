@@ -20,7 +20,10 @@ const loadedThemes = new Set();   // ids + comment-style variant names registere
 const rawTypes = new Map();       // repo/runtime id → the `type` the raw JSON declared (may be undefined)
 const variantGen = new Map();     // runtime id → number of re-uploads (see loadRuntimeTheme)
 
-const COMMENT_STYLE_SCOPES = [
+// Every scope the comment-style variants restyle. Exported so the VS Code
+// export can apply the same list: themes style comment sub-scopes on their
+// own, and a rule on plain `comment` would lose to them.
+export const COMMENT_STYLE_SCOPES = [
   'comment',
   'comment.line',
   'comment.line.double-slash',
@@ -31,14 +34,25 @@ const COMMENT_STYLE_SCOPES = [
 ];
 
 async function bootstrap(builtinThemes) {
-  const { createHighlighter } = await shikiModule;
+  const { createHighlighter, bundledThemes } = await shikiModule;
+  // createHighlighter rejects as a whole on a single unknown name, so one typo
+  // in _builtin.json would stop the app from starting. Drop unknown names in
+  // place: the caller's array is the list it hands to the catalog and the
+  // themes sidebar once the highlighter is ready, so they stay in sync.
+  const dropped = builtinThemes.filter(name => !Object.hasOwn(bundledThemes, name));
+  if (dropped.length) {
+    console.error(`data/themes/_builtin.json: not a Shiki built-in theme, skipped: ${dropped.join(', ')}`);
+    const kept = builtinThemes.filter(name => Object.hasOwn(bundledThemes, name));
+    builtinThemes.splice(0, builtinThemes.length, ...kept);
+  }
   const h = await createHighlighter({ themes: builtinThemes, langs: [] });
   for (const name of builtinThemes) loadedThemes.add(name);
   return h;
 }
 
 // The boot orchestrator passes the built-in theme list on the first call;
-// every later no-arg call reuses the cached promise.
+// every later no-arg call reuses the cached promise. Names Shiki doesn't
+// bundle are removed from that array (in place) before the promise resolves.
 export function getHighlighter(builtinThemes) {
   if (!highlighterPromise) {
     if (!Array.isArray(builtinThemes)) {

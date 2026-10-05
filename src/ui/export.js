@@ -4,7 +4,7 @@
 
 import { createDialog } from './dialog.js';
 import { isFontAvailable } from '../fonts.js';
-import { isDarkTheme } from '../themes.js';
+import { COMMENT_STYLE_SCOPES, isDarkTheme } from '../themes.js';
 
 // Shiki's getTheme() decorates themes with runtime-only keys; drop them so the
 // downloaded JSON is a clean VS Code theme. `displayName` is Shiki's too — the
@@ -19,11 +19,18 @@ function buildSettingsSnippet(font, state, themeId) {
   };
   // Muse always forces comment style (italic or upright) via a theme variant;
   // mirror that with an explicit override so "italic off" also wins over
-  // themes whose comments are natively italic. Scoped to this theme's label
-  // (what our generated extension contributes) so it can't bleed into the
-  // user's other VS Code themes.
+  // themes whose comments are natively italic. Same scope list as the preview:
+  // the `comments` shorthand only covers `comment`, which loses to a theme's
+  // own `comment.line.double-slash` / `comment.block.documentation` rules.
+  // Scoped to this theme's label (what our generated extension contributes)
+  // so it can't bleed into the user's other VS Code themes.
   settings['editor.tokenColorCustomizations'] = {
-    [`[${themeId}]`]: { comments: { fontStyle: state.italic ? 'italic' : '' } },
+    [`[${themeId}]`]: {
+      textMateRules: [{
+        scope: COMMENT_STYLE_SCOPES,
+        settings: { fontStyle: state.italic ? 'italic' : '' },
+      }],
+    },
   };
   return JSON.stringify(settings, null, 2);
 }
@@ -45,6 +52,31 @@ function buildPackageJson(themeId, dark) {
   return JSON.stringify(pkg, null, 2);
 }
 
+// Shiki's normalizeTheme swaps non-hex colors (one-light's "white",
+// "inherit") for "#000000NN" placeholders and records the originals in
+// `colorReplacements`, which it applies at render time. VS Code knows nothing
+// of that map, so put the original values back before the key is dropped.
+// Lookup mirrors Shiki's (lowercased key). Returns clones; never mutates.
+function restoreColor(val, map) {
+  if (typeof val !== 'string') return val;
+  const orig = map[val.toLowerCase()];
+  return typeof orig === 'string' ? orig : val;
+}
+
+function restoreRules(rules, map) {
+  return rules.map(rule => {
+    const s = rule?.settings;
+    if (!s || typeof s !== 'object') return rule;
+    const fg = restoreColor(s.foreground, map);
+    const bg = restoreColor(s.background, map);
+    if (fg === s.foreground && bg === s.background) return rule;
+    const settings = { ...s };
+    if (fg !== undefined) settings.foreground = fg;
+    if (bg !== undefined) settings.background = bg;
+    return { ...rule, settings };
+  });
+}
+
 function cleanTheme(themeId, raw, dark) {
   const out = {};
   for (const [k, v] of Object.entries(raw || {})) {
@@ -57,6 +89,16 @@ function cleanTheme(themeId, raw, dark) {
     out.tokenColors = out.settings;
     delete out.settings;
   }
+  const map = raw?.colorReplacements;
+  if (map && typeof map === 'object' && Object.keys(map).length) {
+    if (Array.isArray(out.tokenColors)) out.tokenColors = restoreRules(out.tokenColors, map);
+    if (Array.isArray(out.settings)) out.settings = restoreRules(out.settings, map);
+    // normalizeTheme also replaces non-hex editor.* / terminal.ansi* colors.
+    if (out.colors && typeof out.colors === 'object') {
+      out.colors = Object.fromEntries(
+        Object.entries(out.colors).map(([k, v]) => [k, restoreColor(v, map)]));
+    }
+  }
   // Output is serialized for download immediately; nested values are shared
   // read-only with the live theme object and must not be mutated.
   out.name = themeId; // keep name coherent with the filename + extension label
@@ -66,7 +108,7 @@ function cleanTheme(themeId, raw, dark) {
   return out;
 }
 
-async function copyText(text) {
+async function copyText(text, container) {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
@@ -78,10 +120,15 @@ async function copyText(text) {
     ta.value = text;
     ta.style.position = 'fixed';
     ta.style.opacity = '0';
-    document.body.appendChild(ta);
+    // Everything outside an open modal <dialog> is inert, so a textarea on
+    // <body> can't be focused or selected and execCommand copies nothing.
+    const prevFocus = document.activeElement;
+    (container || document.body).appendChild(ta);
+    ta.focus();
     ta.select();
     const ok = document.execCommand('copy');
     ta.remove();
+    prevFocus?.focus?.(); // back to the Copy button, not the dialog's start
     return ok;
   } catch {
     return false;
@@ -116,7 +163,7 @@ function makeCodeBlock(text, label) {
   copyBtn.textContent = 'Copy';
   copyBtn.setAttribute('aria-label', `Copy ${label}`);
   copyBtn.addEventListener('click', async () => {
-    const ok = await copyText(text);
+    const ok = await copyText(text, copyBtn.closest('dialog'));
     copyBtn.textContent = ok ? 'Copied ✓' : 'Copy failed';
     copyBtn.classList.toggle('is-copied', ok);
     setTimeout(() => {
@@ -191,11 +238,14 @@ function buildFontSection(font, state, themeId) {
 function buildSteps(themeId) {
   const ol = document.createElement('ol');
   ol.className = 'export-steps';
+  // VS Code (1.74+) no longer picks up a folder copied by hand into
+  // ~/.vscode/extensions, so register it with "Install Extension from
+  // Location…" instead. That installs the folder in place: it has to stay.
   const steps = [
-    `Create a folder: ~/.vscode/extensions/muse-${themeId}/ (Windows: %USERPROFILE%\\.vscode\\extensions\\muse-${themeId}\\).`,
-    `Save the downloaded ${themeId}.json inside that folder.`,
-    'Save the package.json above into the same folder.',
-    'Reload VS Code (Cmd/Ctrl+Shift+P → "Reload Window"), then pick it with Cmd/Ctrl+K Cmd/Ctrl+T.',
+    `Make a folder you'll keep (e.g. muse-${themeId}) — VS Code loads the theme from it, so don't delete it later.`,
+    `Save the downloaded ${themeId}.json and the package.json above into that folder.`,
+    'In VS Code, open the Command Palette (Cmd/Ctrl+Shift+P), run "Developer: Install Extension from Location…", and pick the folder.',
+    `Select the theme with Cmd/Ctrl+K Cmd/Ctrl+T → ${themeId}.`,
   ];
   for (const t of steps) {
     const li = document.createElement('li');

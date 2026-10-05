@@ -38,6 +38,9 @@ try {
   // promise as "unhandled"; it is awaited (and its error reported) below.
   const highlighterReady = getHighlighter(builtinThemeIds);
   highlighterReady.catch(() => {});
+  // The installed-font probe is async (local() font loads) and independent of
+  // everything else; it never rejects.
+  const installedFontsReady = detectInstalledFonts();
 
   const index = await fetchJson('./data/_index.json', { cache: 'no-store' });
   if (!index || typeof index !== 'object' ||
@@ -55,7 +58,7 @@ try {
 
   await highlighterReady;
 
-  const installedFonts = detectInstalledFonts();
+  const installedFonts = await installedFontsReady;
   const manifestIds = new Set(fontManifests.map(f => f.id));
   const foundFonts = restoreFoundFonts();
   for (const f of foundFonts) {
@@ -84,6 +87,8 @@ try {
   // same self-setState to force a re-render — the pill and the catalog entry
   // already exist, so nothing else would trigger one (setState notifies
   // subscribers even when the value is unchanged).
+  // Found fonts never carry a custom- id (checkFontByName maps an installed
+  // "Custom …" to found-custom-…), so a custom- id is always a dialog upload.
   function onFontAdded(font, { fresh = false } = {}) {
     if (font.userAdded && !font.id.startsWith('custom-')) {
       // The Installed tab can name a font Muse already lists (a repo font or an

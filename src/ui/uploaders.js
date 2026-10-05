@@ -1,4 +1,7 @@
-import { registerCustomFont, installFont, checkFontByName, sanitizeFontFace, readStoredCustomFonts } from '../fonts.js';
+import {
+  installFont, uninstallFont, getInstalledFont, saveCustomFont, loadWebFont,
+  checkFontByName, sanitizeFontFace, readStoredCustomFonts,
+} from '../fonts.js';
 import { loadRuntimeTheme } from '../themes.js';
 import { validateTheme } from '../theme-validate.mjs';
 import { CUSTOM_THEMES_KEY } from '../keys.js';
@@ -10,6 +13,8 @@ const MAX_THEME_FILE_BYTES = 2 * 1024 * 1024;
 // Longer names are never real font names, and would stretch every pill and
 // confirm() prompt they appear in.
 const MAX_FONT_NAME = 100;
+// How long the font dialog waits for an upload to load before giving up.
+const FONT_LOAD_TIMEOUT_MS = 15000;
 
 function hash(s) {
   let h = 5381;
@@ -123,9 +128,11 @@ function showFontDialog({ onFontAdded, onStatus }) {
     placeholder: 'https://fonts.googleapis.com/css2?family=Example&display=swap',
   });
   const urlName = makeField({ label: 'Display name', placeholder: 'My Font' });
+  // Examples use fonts Muse doesn't ship, so they add a pill rather than a
+  // second copy of a repo font.
   addExampleButton(urlField.head, () => {
-    urlField.control.value = 'https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap';
-    urlName.control.value = 'Roboto Mono';
+    urlField.control.value = 'https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap';
+    urlName.control.value = 'Red Hat Mono';
     setStatus('', null);
   });
   urlPanel.append(urlField.wrap, urlName.wrap);
@@ -140,8 +147,8 @@ function showFontDialog({ onFontAdded, onStatus }) {
   });
   const ffName = makeField({ label: 'Display name', placeholder: 'My Font' });
   addExampleButton(ffField.head, () => {
-    ffField.control.value = '@font-face {\n  font-family: "Example Mono";\n  font-weight: 400;\n  font-style: normal;\n  src: url("https://example.com/fonts/example-mono.woff2") format("woff2");\n}';
-    ffName.control.value = 'Example Mono';
+    ffField.control.value = '@font-face {\n  font-family: "Martian Mono";\n  font-weight: 400;\n  font-style: normal;\n  src: url("https://cdn.jsdelivr.net/npm/@fontsource/martian-mono@5.3.0/files/martian-mono-latin-400-normal.woff2") format("woff2");\n}';
+    ffName.control.value = 'Martian Mono';
     setStatus('', null);
   });
   ffPanel.append(ffField.wrap, ffName.wrap);
@@ -164,16 +171,21 @@ function showFontDialog({ onFontAdded, onStatus }) {
   instPanel.append(instField.wrap, instActions);
 
   let foundFont = null;
-  const runCheck = () => {
+  let checkSeq = 0;
+  const runCheck = async () => {
+    const seq = ++checkSeq;
     const name = instField.control.value.trim();
+    addFoundBtn.hidden = true;
+    foundFont = null;
     if (!name || name.length > MAX_FONT_NAME) {
       setStatus(name ? `Font name is too long (${MAX_FONT_NAME} characters max).` : 'Enter a font name to check.', 'error');
-      addFoundBtn.hidden = true;
-      foundFont = null;
       return;
     }
     // Probe only: nothing is persisted until "Add this font".
-    const font = checkFontByName(name);
+    setStatus('Checking…', null);
+    const font = await checkFontByName(name);
+    // A newer check (or a tab switch) superseded this one.
+    if (seq !== checkSeq) return;
     if (font) {
       setStatus(`"${font.name}" is installed on this system.`, 'success');
       addFoundBtn.hidden = false;
@@ -231,6 +243,7 @@ function showFontDialog({ onFontAdded, onStatus }) {
     submitBtn.hidden = id === 'installed';
     addFoundBtn.hidden = true;
     foundFont = null;
+    checkSeq++;
     setStatus('', null);
   };
 
@@ -256,22 +269,65 @@ function showFontDialog({ onFontAdded, onStatus }) {
     segments.appendChild(b);
   });
 
-  const finishAdd = (spec) => {
+  // Esc would close the dialog mid-check; hold it until the check settles.
+  let busy = false;
+  dialog.addEventListener('cancel', (e) => { if (busy) e.preventDefault(); });
+
+  // Install the font, then save and select it only once it actually loads. On
+  // failure the id goes back to what it was: an earlier working upload with
+  // the same id is re-installed and stays in storage untouched.
+  const finishAdd = async (spec, failHint) => {
     spec.id = slugify(spec.name);
-    let result;
+    const previous = getInstalledFont(spec.id);
+    let font;
     try {
-      result = registerCustomFont(spec); // single writer
+      font = installFont(spec);
     } catch (e) {
       setStatus('Failed to register font: ' + e.message, 'error');
       return;
     }
-    onFontAdded?.(result.font, { fresh: true });
-    setStatus(result.persisted ? 'Font added ✓' : 'Font added for this session (could not save to local storage).', 'success');
+
+    // Undo only our own install: by the time this runs, a later attempt may
+    // have installed something else under the same id.
+    const revert = () => {
+      if (getInstalledFont(spec.id) !== font) return;
+      if (previous) installFont(previous);
+      else uninstallFont(spec.id);
+    };
+    // Closed mid-load (header ×, backdrop, or a repeated Esc that Chrome lets
+    // through) is a cancel. Revert right away, not when the load settles: the
+    // user can reopen the dialog and re-add the same id meanwhile, and a late
+    // revert would tear down that newer attempt's source.
+    let abandoned = false;
+    const onClose = () => { abandoned = true; revert(); };
+    dialog.addEventListener('close', onClose, { once: true });
+
+    busy = true;
     submitBtn.disabled = true;
     cancelBtn.disabled = true;
+    setStatus('Loading font…', null);
+    let timer;
+    const timedOut = new Promise((resolve) => { timer = setTimeout(() => resolve(false), FONT_LOAD_TIMEOUT_MS); });
+    const ok = await Promise.race([loadWebFont(font), timedOut]);
+    clearTimeout(timer);
+    busy = false;
+    dialog.removeEventListener('close', onClose);
+    if (abandoned) return;
+
+    if (!ok) {
+      revert();
+      submitBtn.disabled = false;
+      cancelBtn.disabled = false;
+      setStatus(`Could not load "${spec.name}". ${failHint}`, 'error');
+      return;
+    }
+
+    const persisted = saveCustomFont(font);
+    onFontAdded?.({ ...font, userAdded: true }, { fresh: true });
+    setStatus(persisted ? 'Font added ✓' : 'Font added for this session (could not save to local storage).', 'success');
     const closeTimer = setTimeout(() => {
       dialog.close();
-      if (result.persisted) {
+      if (persisted) {
         onStatus?.('Custom fonts are stored locally and will fall back to defaults if this URL is shared to another device.');
       }
     }, 900);
@@ -287,7 +343,8 @@ function showFontDialog({ onFontAdded, onStatus }) {
       if (!/^https:\/\//i.test(url)) return setStatus('Font URL must start with https://', 'error');
       if (!name) return setStatus('Please enter a display name.', 'error');
       if (name.length > MAX_FONT_NAME) return setStatus(`Display name is too long (${MAX_FONT_NAME} characters max).`, 'error');
-      finishAdd({ name, cssUrl: url });
+      finishAdd({ name, cssUrl: url },
+        'Check that the URL points to a CSS stylesheet (not a .woff2 file) and that the display name matches the font-family in that CSS.');
     } else if (active === 'fontface') {
       const css = ffField.control.value.trim();
       const name = ffName.control.value.trim();
@@ -296,7 +353,8 @@ function showFontDialog({ onFontAdded, onStatus }) {
       if (!safe) return setStatus('No usable @font-face rule found in the pasted CSS.', 'error');
       if (!name) return setStatus('Please enter a display name.', 'error');
       if (name.length > MAX_FONT_NAME) return setStatus(`Display name is too long (${MAX_FONT_NAME} characters max).`, 'error');
-      finishAdd({ name, fontFaceCss: safe });
+      finishAdd({ name, fontFaceCss: safe },
+        'Check that the src URL works and allows cross-origin use, and that the display name matches the font-family in the CSS.');
     }
   });
 
@@ -335,6 +393,9 @@ function showThemeDialog({ onThemeAdded, onStatus }) {
   });
   body.appendChild(jsonField.wrap);
 
+  // The last dropped/browsed file, so a theme with no `name` can be named after
+  // it — but only while the textarea still holds that file's text.
+  let loadedFile = null;
   const readFile = (file) => {
     if (!file) return;
     if (!/\.json$/i.test(file.name)) {
@@ -346,7 +407,11 @@ function showThemeDialog({ onThemeAdded, onStatus }) {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => { jsonInput.value = reader.result; setStatus('', null); };
+    reader.onload = () => {
+      jsonInput.value = reader.result;
+      loadedFile = { stem: file.name.replace(/\.json$/i, ''), text: jsonInput.value.trim() };
+      setStatus('', null);
+    };
     reader.onerror = () => setStatus('Failed to read file.', 'error');
     reader.readAsText(file);
   };
@@ -398,14 +463,29 @@ function showThemeDialog({ onThemeAdded, onStatus }) {
     const err = validateTheme(theme);
     if (err) return setStatus('Theme rejected — ' + err, 'error');
 
-    const id = slugify(theme.name);
+    // Name the id after the theme, else its file, else its content: two unnamed
+    // themes must not both become custom-unnamed and silently replace each other.
+    const hasName = typeof theme.name === 'string' && theme.name.trim();
+    const label = hasName ? theme.name
+      : loadedFile?.text === json ? loadedFile.stem
+      : `theme-${hash(JSON.stringify(theme))}`;
+    const id = slugify(label);
+
+    // Same id is the re-upload path (edit a theme, upload it again), so it
+    // replaces — but only after asking when the content actually differs.
+    const current = runtimeThemes.get(id);
+    if (current && JSON.stringify(current) !== JSON.stringify({ ...theme, name: id }) &&
+        !confirm(`You already have a custom theme "${label}". Replace it?`)) {
+      return setStatus('Not added. Change the theme\'s "name" to keep both.', 'error');
+    }
+
     submitBtn.disabled = true;
     cancelBtn.disabled = true;
     // Register with Shiki first; only a theme that actually loaded is
     // persisted, so a failure can't leave a dead entry in localStorage.
     loadRuntimeTheme(id, theme).then(() => {
       const persisted = storeCustomTheme(id, theme);
-      onThemeAdded?.({ id, name: theme.name || id, type: theme.type || 'dark' }, { fresh: true });
+      onThemeAdded?.({ id, name: label, type: theme.type || 'dark' }, { fresh: true });
       setStatus(persisted ? 'Theme added ✓' : 'Theme added for this session (could not save to local storage).', 'success');
       const closeTimer = setTimeout(() => {
         dialog.close();

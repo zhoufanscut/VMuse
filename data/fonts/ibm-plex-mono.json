@@ -2,7 +2,6 @@
   "id": "ibm-plex-mono",
   "name": "IBM Plex Mono",
   "stack": "'IBM Plex Mono', monospace",
-  "cssUrl": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap",
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://www.ibm.com/plex/"
 }

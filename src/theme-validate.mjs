@@ -9,6 +9,8 @@
 
 export const COLOR_RE = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
 // Returns null when the theme is acceptable, otherwise a human-readable reason.
 export function validateTheme(theme) {
   if (!theme || typeof theme !== 'object' || Array.isArray(theme)) {
@@ -75,8 +77,19 @@ export function validateTheme(theme) {
     if (rules == null) return null;
     if (!Array.isArray(rules)) return `${label}: must be an array`;
     for (let i = 0; i < rules.length; i++) {
-      const s = rules[i]?.settings;
-      if (!s || typeof s !== 'object') continue;
+      const rule = rules[i];
+      const at = `${label}[${i}]`;
+      // Shiki trusts the rule shape: a null rule or a non-string scope passes
+      // loadTheme, then throws on every render (`scopes[j].trim`).
+      if (!isPlainObject(rule)) return `${at}: must be an object`;
+      const sc = rule.scope;
+      if (sc != null && typeof sc !== 'string' &&
+          !(Array.isArray(sc) && sc.every(x => typeof x === 'string'))) {
+        return `${at}.scope: must be a string or an array of strings`;
+      }
+      const s = rule.settings;
+      if (s == null) continue;
+      if (!isPlainObject(s)) return `${at}.settings: must be an object`;
       const fg = bad(s.foreground, `${label}[${i}].settings.foreground`);
       if (fg) return fg;
       const bg = bad(s.background, `${label}[${i}].settings.background`);

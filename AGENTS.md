@@ -42,11 +42,11 @@ data/
 
 All imports use relative paths with `./` prefix. All `fetch()` calls use `./` prefix (required for GitHub Pages project sites).
 
-`src/theme-validate.mjs` is the one module shared with Node (`scripts/rebuild-index.mjs` imports it). It uses the `.mjs` extension because there is no `package.json` to declare `"type": "module"`, and CI's Node 20 would otherwise parse it as CommonJS. Keep it free of DOM and Node APIs.
+`src/theme-validate.mjs` is the one module shared with Node (`scripts/rebuild-index.mjs` imports it). It uses the `.mjs` extension because there is no `package.json` to declare `"type": "module"`, and Node 18 (the minimum) would otherwise parse it as CommonJS. Keep it free of DOM and Node APIs.
 
 The DOM order in `index.html` is header → language tabs → controls → preview → fonts sidebar → themes sidebar (the reading and Tab order); CSS grid areas place them visually. Don't reorder the markup to match the visual layout.
 
-**`_index.json` vs `_builtin.json`**: `_index.json` only lists **repo** fonts/themes/languages by id. Shiki built-in theme names live separately in `data/themes/_builtin.json` (a string array) and are NOT in `_index.json`. The sidebar merges both lists at runtime. When adding a repo theme, ensure the id doesn't collide with any name in `_builtin.json`.
+**`_index.json` vs `_builtin.json`**: `_index.json` only lists **repo** fonts/themes/languages by id. Shiki built-in theme names live separately in `data/themes/_builtin.json` (a string array) and are NOT in `_index.json`. The sidebar merges both lists at runtime. When adding a repo theme, ensure the id doesn't collide with any name in `_builtin.json`. CI only checks that `_builtin.json` is an array of strings; at boot, `getHighlighter` in `src/themes.js` drops names Shiki doesn't bundle (one `console.error`) from the array it is given, so a typo hides that theme instead of stopping the app from starting.
 
 ## Local dev
 
@@ -56,7 +56,7 @@ node scripts/rebuild-index.mjs     # regenerate data/_index.json after data chan
 node scripts/rebuild-index.mjs --check   # validate-only (no write); prints a ✓ summary on success
 ```
 
-Node.js 18+ required (CI uses 20). The rebuild script uses only `node:fs`, zero dependencies.
+Node.js 18+ required (CI uses 24). The rebuild script uses only `node:fs`, `node:path`, and `node:url` — zero dependencies.
 
 **Do NOT test with `file://`.** Browsers block `fetch()` for ES modules and data on file protocol.
 
@@ -94,17 +94,21 @@ await document.fonts.load(`16px 'Font Name'`);
 ```
 The `<link>` `load` event is only the *first* step (`ensureStylesheet` in `src/fonts.js` waits for it so the `@font-face` rules exist), never the readiness signal: it fires when the CSS arrives, not when the font is usable. Re-applying styles after the font loads is unnecessary (the browser swaps the face in itself) and was the source of a bug where the render-time size clobbered slider changes — don't add it back.
 
+The Add Font dialog saves and selects a font only after `loadWebFont` succeeds (15 s timeout). A failed load — or closing the dialog while it loads — puts back the font that was installed under that id before (`installFont(previous)`, else `uninstallFont(id)`) and never touches `localStorage`, so an earlier working upload with the same id survives. Each font id's CSS URL is tracked: removing or re-uploading a URL font removes its `<link>` unless another font still uses that URL.
+
 ### State precedence
 ```
 URL hash > localStorage > hardcoded defaults
 ```
-On page load, hash overrides everything. When state changes, **both** `localStorage` and URL hash update simultaneously. `state.js` also listens for `hashchange`, so pasting a shared hash into an open tab applies live — unknown hash keys are ignored, invalid ids fall back to defaults. The app's own hash writes use `history.replaceState`, which never fires `hashchange` (no feedback loop).
+On page load, hash overrides everything. When state changes, **both** `localStorage` and URL hash update simultaneously. `state.js` also listens for `hashchange`, so pasting a shared hash into an open tab applies live — unknown hash keys are ignored, invalid ids fall back to defaults (or to the first catalog entry when the default itself is missing). A `hashchange` that changes nothing (`#lang=go` while already on go, `#foo=bar`, `#`) rewrites the full hash, so a copied link always carries the whole setup. The app's own hash writes use `history.replaceState`, which never fires `hashchange` (no feedback loop).
 
 ### Page chrome follows the render guard
 `renderPreview` in `src/preview.js` resolves the theme background / light-dark mode early but applies `--theme-bg` and `data-theme` only **after** the `renderToken` check, together with the HTML. Applying them before the guard let a stale render repaint the chrome of a theme the user had already left.
 
 ### Re-uploaded themes need new variant names
 Shiki caches the active theme by name (`setTheme` is a no-op when the name is unchanged), so re-registering a comment-style variant under the same name keeps tokenizing with the old TextMate theme. `loadRuntimeTheme` in `src/themes.js` bumps a per-id generation that is baked into the variant name; never reuse a variant name after its base theme changed.
+
+The variants restyle every scope in `COMMENT_STYLE_SCOPES` (exported from `src/themes.js`); the VS Code export writes its comment override with the same list, so the preview and the editor agree.
 
 ### `.nojekyll`
 The root `.nojekyll` file (empty) is **required** for GitHub Pages. Without it, Jekyll drops files starting with `_` (like `_index.json` and `_builtin.json`), and the app fails to boot.
@@ -129,12 +133,12 @@ Shiki's `normalizeTheme` mutates the object it is given (it aliases `tokenColors
 Language manifests store `sample` as a **relative path without `./` prefix** (e.g. `"sample": "data/samples/python.txt"`). The loader (`src/languages.js`) prepends `./` at fetch time. Never include `./` in the manifest's `sample` field — `rebuild-index.mjs --check` rejects anything that doesn't match `data/samples/<file>.txt`.
 
 ### Custom theme slug prefix
-Runtime-uploaded themes get slugs prefixed with `custom-` (see `slugify()` in `src/ui/uploaders.js`). This distinguishes runtime-only themes from repo themes and prevents accidental filename collisions. Repo themes never use this prefix. Slugs keep Unicode letters/digits, and a name with none at all gets a short hash — no two uploads can collapse onto a bare `custom-` id.
+Runtime-uploaded themes get slugs prefixed with `custom-` (see `slugify()` in `src/ui/uploaders.js`). This distinguishes runtime-only themes from repo themes and prevents accidental filename collisions. Repo themes never use this prefix. Slugs keep Unicode letters/digits, and a name with none at all gets a short hash — no two uploads can collapse onto a bare `custom-` id. A theme without a `name` takes its id from the dropped file's name (while the textarea still holds that file's text), else `theme-<content hash>`. Uploading again under an existing id replaces it (that is how an edited theme is updated), but asks first when the content differs.
 
-Uploaded theme JSON goes through `validateTheme()` (`src/theme-validate.mjs`) **before** registration, and a theme is persisted to `localStorage` only after Shiki accepted it. `readStoredCustomThemes()` re-validates on restore, so `main.js` puts an id in the catalog only when `restoreCustom` will actually register it.
+Uploaded theme JSON goes through `validateTheme()` (`src/theme-validate.mjs`) **before** registration — hex-only colors, and each `tokenColors` rule a plain object whose `scope` is absent, a string, or an array of strings and whose `settings`, if present, is an object — and a theme is persisted to `localStorage` only after Shiki accepted it. `readStoredCustomThemes()` re-validates on restore, so `main.js` puts an id in the catalog only when `restoreCustom` will actually register it.
 
 ### Custom font slug prefix
-Runtime-uploaded fonts (URL or `@font-face` via the dialog) also get `custom-`-prefixed ids — `slugify()` computes the id in `src/ui/uploaders.js` and `installFont` honors `spec.id`. This stops a name like "JetBrains Mono" from shadowing the repo `jetbrains-mono` manifest. System/"found" fonts keep their **real** id (no prefix) so they map to the actually-installed font. Repo fonts, themes, and languages never use this prefix — `rebuild-index.mjs --check` rejects committed `custom-*` files.
+Runtime-uploaded fonts (URL or `@font-face` via the dialog) also get `custom-`-prefixed ids — `slugify()` computes the id in `src/ui/uploaders.js` and `installFont` honors `spec.id`. This stops a name like "JetBrains Mono" from shadowing the repo `jetbrains-mono` manifest. System/"found" fonts keep their **real** id (no prefix) so they map to the actually-installed font — except an installed name that would slug to `custom-…` ("Custom Mono"), which `checkFontByName` maps to `found-custom-…`. The installed check (`isFontInstalled` in `src/fonts.js`) loads a `FontFace` built only from `local()` sources, so web fonts the page already loaded never count as installed. If no `local()` spelling matches, it falls back to the canvas probe `isFontAvailable`, but only when no web face of that family is on the page. Repo fonts, themes, and languages never use this prefix — `rebuild-index.mjs --check` rejects committed `custom-*` files.
 
 ### Content-Security-Policy
 `index.html` carries a CSP `<meta>`. `script-src` must keep `https://esm.sh` **and** `'wasm-unsafe-eval'`, and `connect-src` must keep `https://esm.sh` — Shiki loads its module and oniguruma WASM from there, and a stricter policy silently breaks highlighting. `style-src`/`font-src` allow any `https:` host so custom fonts from any CDN work; `style-src` needs `'unsafe-inline'` because Shiki emits inline styles. Update the directive list when introducing a new CDN.
@@ -152,10 +156,10 @@ The names live in `src/keys.js`; import them rather than retyping the strings. A
 
 Single workflow: `.github/workflows/rebuild-index.yml`
 
-- **On PR**: runs `node scripts/rebuild-index.mjs --check` (validation-only)
-- **On push to `main`**: validates + regenerates `data/_index.json` + auto-commits it
+- **On PR** (job `check`): runs `node scripts/rebuild-index.mjs --check` (validation-only) with a read-only token that is not kept in `.git/config`
+- **On push to `main`** (job `rebuild`, the only one with `contents: write`): checks out the branch tip (not the pushed commit), validates + regenerates `data/_index.json` + auto-commits it. A concurrency group runs one at a time per branch.
 
-The workflow only runs when something under `data/`, the rebuild script, the shared validator, or the workflow itself changed (see its `paths` filter); a code-only push deploys as is. Pages deploys on every push to `main`, including the bot's auto-commit. No manual deploy step.
+Node 24; actions are pinned by commit SHA. The workflow only runs when something under `data/` (including a hand edit to `data/_index.json`, push only), the rebuild script, the shared validator, or the workflow itself changed (see its `paths` filter); a code-only push deploys as is. The bot's commit cannot loop: pushes made with `GITHUB_TOKEN` start no workflow runs. Pages deploys on every push to `main`, including the bot's auto-commit. No manual deploy step.
 
 ## What doesn't exist
 
@@ -185,7 +189,7 @@ setState({ theme: 'dracula' });
 const unsub = subscribe((state) => { /* render */ });
 ```
 
-Before `setCatalog()` is called during boot, `setState` does NOT validate against available assets. After boot, every `setState` validates: invalid font/theme/lang IDs trigger `console.error` and fall back to defaults.
+Before `setCatalog()` is called during boot, `setState` does NOT validate against available assets. After boot, every `setState` validates: invalid font/theme/lang IDs trigger `console.error` and fall back to the default, or to the first catalog entry when the default is not in the catalog.
 
 Because of that validation, runtime additions/removals must keep the catalog in sync via `extendCatalog('fonts'|'themes', id)` / `removeFromCatalog(...)` — `main.js` does this in its `onFontAdded`/`onThemeAdded` callbacks, the sidebars on pill removal. Selecting a freshly uploaded asset without extending the catalog bounces the selection back to defaults.
 

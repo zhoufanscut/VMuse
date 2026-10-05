@@ -2,7 +2,6 @@
   "id": "roboto-mono",
   "name": "Roboto Mono",
   "stack": "'Roboto Mono', monospace",
-  "cssUrl": "https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap",
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://fonts.google.com/specimen/Roboto+Mono"
 }

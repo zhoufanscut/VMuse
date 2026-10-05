@@ -2,8 +2,6 @@
   "id": "cascadia-code",
   "name": "Cascadia Code",
   "stack": "'Cascadia Code', monospace",
-  "cssUrl": "https://cdn.jsdelivr.net/npm/@fontsource/cascadia-code/index.css",
-  "ligatures": true,
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=Cascadia+Code:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://github.com/microsoft/cascadia-code"
 }

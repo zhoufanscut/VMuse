@@ -1,6 +1,7 @@
 // Validates every asset under data/ and (unless --check) regenerates
-// data/_index.json. Zero dependencies; Node 18+. Paths resolve against the
-// repo root, so it can be run from any working directory.
+// data/_index.json. Zero dependencies (only node:fs, node:path, node:url);
+// Node 18+, CI runs 24. Paths resolve against the repo root, so it can be run
+// from any working directory.
 
 import { readdirSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

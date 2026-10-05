@@ -2,8 +2,6 @@
   "id": "geist-mono",
   "name": "Geist Mono",
   "stack": "'Geist Mono', monospace",
-  "cssUrl": "https://cdn.jsdelivr.net/npm/@fontsource/geist-mono/index.css",
-  "ligatures": true,
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=Geist+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://vercel.com/font"
 }

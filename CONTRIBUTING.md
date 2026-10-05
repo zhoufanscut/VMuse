@@ -6,9 +6,9 @@ The nice part of the data layout: every contribution is a new file in `data/`. Y
 
 ## The gist
 
-**Font** — add `data/fonts/<id>.json`. Check that the `cssUrl` actually loads (try it in a private window), that the `id` matches the filename, and that the font is something you're allowed to share (a `credits` link is nice).
+**Font** — add `data/fonts/<id>.json`. Check that the `cssUrl` actually loads (try it in a private window), that the `id` matches the filename, and that the font is something you're allowed to share (a `credits` link is nice). On Google Fonts, ask for italic and bold when the family has them (`family=X:ital,wght@0,400;0,700;1,400;1,700&display=swap`); on other CDNs, pin a version (`@fontsource/x@5.3.0/…`).
 
-**Theme** — add `data/themes/<id>.json`, any valid VSCode theme JSON with hex colors only (Muse writes them into inline styles, so CI rejects anything else) and, ideally, a `"type": "light"` or `"dark"`. A screenshot in the PR helps me see what it looks like. The filename id shouldn't collide with a Shiki built-in theme name.
+**Theme** — add `data/themes/<id>.json`, any valid VSCode theme JSON with hex colors only (Muse writes them into inline styles, so CI rejects anything else) and, ideally, a `"type": "light"` or `"dark"`. A screenshot in the PR helps me see what it looks like. The filename id shouldn't collide with a Shiki built-in theme name. Only add a theme whose license allows sharing it, and add its entry to [`data/themes/LICENSES.md`](data/themes/LICENSES.md) in the same PR: the upstream URL pinned to a commit, the copyright line, the license (full text, or a link for GPL-family ones), and whether you changed the file and how.
 
 **Language** — add `data/languages/<id>.json` plus `data/samples/<id>.txt`. Keep the sample a small, self-contained, real-looking program (~50–100 lines) that tokenizes cleanly, and make `shikiLang` a real Shiki language id.
 

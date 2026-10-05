@@ -3,7 +3,5 @@
   "name": "Fira Code",
   "stack": "'Fira Code', monospace",
   "cssUrl": "https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap",
-  "ligatures": true,
-  "weights": [400, 700],
   "credits": "https://github.com/tonsky/FiraCode"
 }

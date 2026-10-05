@@ -28,12 +28,13 @@ that re-render. That's the whole app.
   **filename stem === the `id` field inside it**, and that id is what lives in the URL hash,
   `localStorage`, and Shiki's registry. `rebuild-index.mjs` enforces the match.
 - **Manifest** — the small JSON describing a font or language. Font: `id`, `name`, `stack`,
-  optional `cssUrl`/`ligatures`/`weights`/`credits`. Language: `id`, `label`, `shikiLang`,
+  optional `cssUrl`/`credits`. Language: `id`, `label`, `shikiLang`,
   `sample`, `summary`. (Themes have no manifest — the theme JSON *is* the asset.)
 - **catalog** — the in-memory set of valid ids (`{fonts, themes, languages}`) in `state.js`.
-  Every `setState` validates against it; an unknown id falls back to a default with a
-  `console.error`. Runtime adds/removes must keep it in sync (`extendCatalog`/
-  `removeFromCatalog`) or a freshly uploaded selection bounces back to default.
+  Every `setState` validates against it; an unknown id falls back to the default (or the
+  first catalog entry if the default is missing) with a `console.error`. Runtime
+  adds/removes must keep it in sync (`extendCatalog`/`removeFromCatalog`) or a freshly
+  uploaded selection bounces back to default.
 - **`data/_index.json`** — the catalog **on disk**: the auto-generated list of *repo* asset
   ids, fetched at boot. **Never hand-edit** — `rebuild-index.mjs` / CI regenerate it.
 
@@ -44,10 +45,13 @@ that re-render. That's the whole app.
 - **Runtime asset** — uploaded in-browser, persisted in `localStorage` **only**. A shared URL
   pointing at one falls back to defaults on another device.
 - **Built-in theme** — a theme Shiki ships (names in `data/themes/_builtin.json`); available
-  with no repo file. The committed repo themes are currently light themes Shiki doesn't ship.
+  with no repo file. A name Shiki doesn't bundle is dropped at boot with a `console.error`. The
+  committed repo themes are currently light themes Shiki doesn't ship.
 - **Installed / found font** — a font already on the visitor's machine: either auto-detected
-  from the `LOCAL_FONTS` probe (`fonts.js`, via a canvas-width trick) or *found* by the user
-  typing its name. No download needed.
+  from the `LOCAL_FONTS` list or *found* by the user typing its name. `isFontInstalled`
+  (`fonts.js`) checks with a `local()`-only `FontFace` (canvas fallback only when no web face of that
+  family is loaded), so web fonts never count. No download
+  needed. Found ids keep the real name, except `custom-…` becomes `found-custom-…`.
 - **Custom font / theme** — a runtime upload (URL, `@font-face`, or theme JSON). Its id gets a
   **`custom-` prefix** (`slugify()` in `ui/uploaders.js`) so it can't shadow a repo id — repo
   files must never use that prefix (CI rejects them). For themes there are two layers: the
@@ -88,10 +92,12 @@ that re-render. That's the whole app.
   navigation).
 - **Uploader dialog** — the *Add Font* / *Add Theme* modals that create runtime assets. Theme
   JSON is checked by `validateTheme()` (`src/theme-validate.mjs`): hex-only colors block CSS
-  injection through Shiki's inline styles. The same function validates committed repo themes
+  injection through Shiki's inline styles, and each `tokenColors` rule must be an object with a
+  string or string-array `scope`. The same function validates committed repo themes
   in CI.
 - **Export** — turns the current setup into a paste-ready VS Code `settings.json` plus the theme
-  wrapped as a tiny extension (`ui/export.js`).
+  wrapped as a tiny extension (`ui/export.js`), installed with "Developer: Install Extension
+  from Location…". Its comment override uses the same `COMMENT_STYLE_SCOPES` as the preview.
 
 ## Build & deploy
 
@@ -99,7 +105,8 @@ that re-render. That's the whole app.
   loads at runtime from `esm.sh`. Deployed as GitHub Pages from the repo root.
 - **`rebuild-index.mjs`** — the only script: validates every asset (ids, required string
   fields, https URLs, sample paths, theme colors) and regenerates `_index.json`. `--check`
-  validates without writing (PR CI). Node 18+, zero deps, runnable from any directory.
+  validates without writing (PR CI). Node 18+ (CI runs 24), zero deps, runnable from any
+  directory.
 - **`.nojekyll`** — the empty root file that stops Jekyll dropping `_`-prefixed files
   (`_index.json`, `_builtin.json`). Without it the app won't boot.
 

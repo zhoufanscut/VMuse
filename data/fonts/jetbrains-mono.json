@@ -2,8 +2,6 @@
   "id": "jetbrains-mono",
   "name": "JetBrains Mono",
   "stack": "'JetBrains Mono', monospace",
-  "cssUrl": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap",
-  "ligatures": true,
-  "weights": [400, 700],
+  "cssUrl": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap",
   "credits": "https://www.jetbrains.com/lp/mono/"
 }

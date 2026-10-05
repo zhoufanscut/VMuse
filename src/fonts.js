@@ -55,6 +55,8 @@ const LOCAL_FONTS = [
 const stylesheetPromises = new Map();
 const fontPromises = new Map();
 const fontFaceStyles = new Map(); // font id → <style> holding its pasted @font-face rules
+const fontStylesheets = new Map(); // font id → the CSS URL it loads from
+const installedSpecs = new Map(); // custom font id → the spec installFont last applied
 
 // Quote a family name for CSS (font-family stacks, ctx.font, document.fonts.load).
 // An unescaped quote in a name would make the whole declaration invalid, which
@@ -120,6 +122,35 @@ function ensureStylesheet(cssUrl) {
   return promise;
 }
 
+// Does any tracked font still load `cssUrl`?
+function stylesheetInUse(cssUrl) {
+  for (const url of fontStylesheets.values()) {
+    if (url === cssUrl) return true;
+  }
+  return false;
+}
+
+// Drop a font id's web source (its pasted <style>, or its CSS <link> unless
+// another font still loads that URL), so a removed or re-uploaded font can't
+// keep an old face live until reload.
+function releaseFontSources(id) {
+  fontFaceStyles.get(id)?.remove();
+  fontFaceStyles.delete(id);
+
+  const cssUrl = fontStylesheets.get(id);
+  fontStylesheets.delete(id);
+  if (!cssUrl || stylesheetInUse(cssUrl)) return;
+  const link = findStylesheet(cssUrl);
+  // A <link> removed mid-load fires neither load nor error, which would hang
+  // its pending promise; failing it settles that promise and removes the link.
+  if (link && link.dataset.museFontStylesheetReady !== 'true') link.dispatchEvent(new Event('error'));
+  link?.remove();
+  stylesheetPromises.delete(cssUrl);
+  for (const key of fontPromises.keys()) {
+    if (key.startsWith(`url:${cssUrl}::`)) fontPromises.delete(key);
+  }
+}
+
 // Font loading requires TWO waits when injecting a new stylesheet:
 // 1. Wait for the CSS <link> to load — @font-face must be registered before
 //    document.fonts.load() can find and wait for the font.
@@ -135,6 +166,13 @@ export async function loadWebFont(font) {
     : font.fontFaceCss ? `css:${font.fontFaceCss}::${font.name}`
     : `local::${font.name}`;
   if (fontPromises.has(key)) return fontPromises.get(key);
+
+  // Count a repo font as a user of its stylesheet, so removing an upload with
+  // the same URL leaves the repo font's <link> in place. Custom fonts are
+  // tracked by installFont, which owns their (possibly re-uploaded) source.
+  if (font.cssUrl && font.id && !fontStylesheets.has(font.id)) {
+    fontStylesheets.set(font.id, font.cssUrl);
+  }
 
   const promise = (async () => {
     if (font.cssUrl) {
@@ -165,7 +203,9 @@ export async function loadWebFont(font) {
 }
 
 // Canvas trick: compare 16px serif baseline against 16px <candidate>, serif.
-// If widths match, the candidate font is NOT installed.
+// If widths match, the candidate font is NOT installed. The canvas also sees
+// web fonts loaded into this page, so it can only answer for a name with no
+// web source loaded — prefer isFontInstalled for a real OS-install check.
 let probeCtx = null;
 export function isFontAvailable(fontName) {
   if (!probeCtx) probeCtx = document.createElement('canvas').getContext('2d');
@@ -175,6 +215,33 @@ export function isFontAvailable(fontName) {
   const fallbackWidth = ctx.measureText(testStr).width;
   ctx.font = `16px ${cssFamily(fontName)}, serif`;
   return ctx.measureText(testStr).width !== fallbackWidth;
+}
+
+// Is `fontName` installed on this OS? A FontFace built from local() sources
+// only ever matches OS fonts, never the page's own @font-face faces, so a web
+// font loaded for the preview can't pass for an install. local() matches a
+// face's full or PostScript name, not its family name, so the regular face's
+// usual spellings are tried too ("Menlo Regular", "Menlo-Regular"). A font
+// whose regular face is named otherwise ("Foo Book") falls back to the canvas
+// check, which is safe only while no web face of that family is on the page.
+let probeSeq = 0;
+export async function isFontInstalled(fontName) {
+  const name = String(fontName).trim();
+  if (!name) return false;
+  const compact = name.replace(/\s+/g, '');
+  const candidates = [...new Set([name, `${name} Regular`, `${compact}-Regular`, compact])];
+  const src = candidates.map(c => `local(${cssFamily(c)})`).join(', ');
+  try {
+    // Never added to document.fonts, so the probe can't affect rendering.
+    await new FontFace(`muse-probe-${++probeSeq}`, src).load();
+    return true;
+  } catch {
+    const lower = name.toLowerCase();
+    const hasWebFace = [...document.fonts].some(
+      f => f.family.replace(/^["']|["']$/g, '').toLowerCase() === lower,
+    );
+    return !hasWebFace && isFontAvailable(name);
+  }
 }
 
 function isFontManifest(m) {
@@ -204,9 +271,10 @@ export async function loadFontManifests(ids) {
   return results;
 }
 
-export function detectInstalledFonts() {
+export async function detectInstalledFonts() {
+  const found = await Promise.all(LOCAL_FONTS.map(f => isFontInstalled(f.name)));
   return LOCAL_FONTS
-    .filter((f) => isFontAvailable(f.name))
+    .filter((_, i) => found[i])
     .map((f) => ({ ...f, stack: fontStack(f.name), cssUrl: null, installed: true }));
 }
 
@@ -232,21 +300,24 @@ export function installFont(spec) {
   }
   const id = spec.id || legacyFontId(spec.name);
 
+  // Replace, don't pile up: a re-upload under the same id must not leave the
+  // old source (pasted rules or CSS URL) competing with the new one.
+  // An unchanged URL keeps its <link>, so the face doesn't blink out meanwhile.
+  if (!spec.cssUrl || fontStylesheets.get(id) !== spec.cssUrl) releaseFontSources(id);
+
   if (spec.cssUrl) {
     // Inject via ensureStylesheet so load/error listeners attach at birth: a
     // bare <link> that failed would hang later loadWebFont calls forever.
+    fontStylesheets.set(id, spec.cssUrl);
     ensureStylesheet(spec.cssUrl);
   } else if (spec.fontFaceCss) {
-    // Replace, don't pile up: a re-upload under the same id must not leave the
-    // old @font-face rules competing with the new ones.
-    fontFaceStyles.get(id)?.remove();
     const style = document.createElement('style');
     style.textContent = spec.fontFaceCss;
     document.head.appendChild(style);
     fontFaceStyles.set(id, style);
   }
 
-  return {
+  const font = {
     id,
     name: spec.name,
     stack: fontStack(spec.name),
@@ -254,6 +325,20 @@ export function installFont(spec) {
     fontFaceCss: spec.fontFaceCss || null,
     installed: !!spec.installed,
   };
+  installedSpecs.set(id, font);
+  return font;
+}
+
+// The spec installFont last applied for `id` (a restored or uploaded font), so
+// a failed re-upload can put the working one back.
+export function getInstalledFont(id) {
+  return installedSpecs.get(id) || null;
+}
+
+// Undo installFont for `id` in this page only; localStorage is untouched.
+export function uninstallFont(id) {
+  releaseFontSources(id);
+  installedSpecs.delete(id);
 }
 
 function readJsonArray(key) {
@@ -282,10 +367,11 @@ export function readStoredCustomFonts() {
   return out;
 }
 
-export function registerCustomFont(spec) {
-  const fontObject = installFont(spec);
-
-  let persisted = false;
+// Persist an installed font (installFont's result) to muse:custom-fonts. The
+// upload dialog calls it only after loadWebFont confirmed the font works, so a
+// broken upload never replaces a working one in storage. Returns false when
+// localStorage refused the write.
+export function saveCustomFont(fontObject) {
   try {
     const existing = readStoredCustomFonts();
     // Replace on re-upload (same id) so the stored spec can't go stale.
@@ -293,17 +379,15 @@ export function registerCustomFont(spec) {
     if (idx >= 0) existing[idx] = fontObject;
     else existing.push(fontObject);
     localStorage.setItem(CUSTOM_FONTS_KEY, JSON.stringify(existing));
-    persisted = true;
+    return true;
   } catch (e) {
     console.error(e);
+    return false;
   }
-
-  return { font: fontObject, persisted };
 }
 
 export function removeCustomFont(id) {
-  fontFaceStyles.get(id)?.remove();
-  fontFaceStyles.delete(id);
+  uninstallFont(id);
   try {
     const existing = readJsonArray(CUSTOM_FONTS_KEY);
     localStorage.setItem(
@@ -317,16 +401,22 @@ export function removeCustomFont(id) {
 
 // Probe only — persisting is a separate step (persistFoundFont) so that
 // checking a name in the dialog and then cancelling leaves nothing behind.
-export function checkFontByName(fontName) {
+// Resolves to null when the font is not installed.
+export async function checkFontByName(fontName) {
   if (!fontName || typeof fontName !== 'string') return null;
   const trimmed = fontName.trim();
   if (!trimmed) return null;
 
-  const available = isFontAvailable(trimmed);
-  if (!available) return null;
+  if (!(await isFontInstalled(trimmed))) return null;
+
+  // `custom-` ids belong to dialog uploads (muse:custom-fonts). An installed
+  // "Custom Mono" must not land there: it would skip persisting, shadow an
+  // upload's pill, and removing it would delete the stored upload.
+  let id = legacyFontId(trimmed);
+  if (id.startsWith('custom-')) id = `found-${id}`;
 
   return {
-    id: legacyFontId(trimmed),
+    id,
     name: trimmed,
     stack: fontStack(trimmed),
     cssUrl: null,

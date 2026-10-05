@@ -112,20 +112,26 @@ try { hadStoredState = localStorage.getItem(KEY) != null; } catch {}
 
 let state = load();
 
+// Fall back to the default only when the catalog actually has it; otherwise
+// (say python.json failed to load) take the first entry, so state never names
+// an id the UI can't show. An empty list keeps the default.
+function fallback(list, d) {
+  return list.includes(d) ? d : (list[0] ?? d);
+}
+
 function validateAgainstCatalog(s) {
   if (!catalog) return s;
   const patched = { ...s };
-  if (catalog.fonts && !catalog.fonts.includes(patched.font)) {
-    console.error(`muse: unknown font "${patched.font}", falling back to default`);
-    patched.font = DEFAULTS.font;
-  }
-  if (catalog.themes && !catalog.themes.includes(patched.theme)) {
-    console.error(`muse: unknown theme "${patched.theme}", falling back to default`);
-    patched.theme = DEFAULTS.theme;
-  }
-  if (catalog.languages && !catalog.languages.includes(patched.lang)) {
-    console.error(`muse: unknown language "${patched.lang}", falling back to default`);
-    patched.lang = DEFAULTS.lang;
+  for (const [kind, key, label] of [
+    ['fonts', 'font', 'font'],
+    ['themes', 'theme', 'theme'],
+    ['languages', 'lang', 'language'],
+  ]) {
+    const list = catalog[kind];
+    if (!list || list.includes(patched[key])) continue;
+    const next = fallback(list, DEFAULTS[key]);
+    console.error(`muse: unknown ${label} "${patched[key]}", falling back to "${next}"`);
+    patched[key] = next;
   }
   return patched;
 }
@@ -204,9 +210,12 @@ export function subscribe(fn) {
 // Apply live hash edits (pasting a shared #hash into an open tab, or a link
 // targeting this tab) without a reload. Our own writes go through
 // history.replaceState, which never fires hashchange — no feedback loop.
+// A hash that changes nothing (empty, unknown keys only, or a subset matching
+// the current selection) still gets the full canonical hash written back, so
+// a copied link always carries the whole setup.
 window.addEventListener('hashchange', () => {
   const fromHash = parseHash(location.hash);
-  if (!fromHash) return;
-  const changed = Object.keys(fromHash).some(k => fromHash[k] !== state[k]);
+  const changed = fromHash && Object.keys(fromHash).some(k => fromHash[k] !== state[k]);
   if (changed) setState(fromHash);
+  else writeHash(state);
 });
