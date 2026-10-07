@@ -114,7 +114,7 @@ function showFontDialog({ onFontAdded, onStatus }) {
   title.textContent = 'Add Custom Font';
   const { status, setStatus } = makeStatus();
 
-  const prefix = `muse-font-dialog-${++fontDialogSeq}`;
+  const prefix = `vmuse-font-dialog-${++fontDialogSeq}`;
   const TABS = [
     { id: 'url', label: 'From URL' },
     { id: 'fontface', label: 'Paste @font-face' },
@@ -128,7 +128,7 @@ function showFontDialog({ onFontAdded, onStatus }) {
     placeholder: 'https://fonts.googleapis.com/css2?family=Example&display=swap',
   });
   const urlName = makeField({ label: 'Display name', placeholder: 'My Font' });
-  // Examples use fonts Muse doesn't ship, so they add a pill rather than a
+  // Examples use fonts VMuse doesn't ship, so they add a pill rather than a
   // second copy of a repo font.
   addExampleButton(urlField.head, () => {
     urlField.control.value = 'https://fonts.googleapis.com/css2?family=Red+Hat+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap';
@@ -545,7 +545,7 @@ export function mountUploaders({ addFontBtn, addThemeBtn, onFontAdded, onThemeAd
 }
 
 // Live copies of the runtime themes (id → theme JSON with name: id), the
-// in-memory layer over the persisted muse:custom-themes entries.
+// in-memory layer over the persisted vmuse:custom-themes entries.
 const runtimeThemes = new Map();
 
 function storeCustomTheme(id, theme) {
@@ -565,7 +565,7 @@ function storeCustomTheme(id, theme) {
   }
 }
 
-// Validated {id, theme} entries from muse:custom-themes. Malformed entries and
+// Validated {id, theme} entries from vmuse:custom-themes. Malformed entries and
 // themes that would fail today's color validation (stored before it existed)
 // are dropped with a console.error rather than aborting the whole restore.
 export function readStoredCustomThemes() {
@@ -581,12 +581,12 @@ export function readStoredCustomThemes() {
     const id = entry?.id;
     const theme = entry?.theme;
     if (typeof id !== 'string' || !id || !theme || typeof theme !== 'object') {
-      console.error('muse: dropping malformed stored theme', entry);
+      console.error('vmuse: dropping malformed stored theme', entry);
       continue;
     }
     const err = validateTheme(theme);
     if (err) {
-      console.error(`muse: dropping stored theme "${id}" — ${err}`);
+      console.error(`vmuse: dropping stored theme "${id}" — ${err}`);
       continue;
     }
     out.push({ id, theme });
@@ -613,7 +613,7 @@ export function removeCustomTheme(id) {
 export async function restoreCustom({ onFontAdded, onThemeAdded }) {
   for (const spec of readStoredCustomFonts()) {
     try {
-      // Everything in muse:custom-fonts is user-added and removable, including
+      // Everything in vmuse:custom-fonts is user-added and removable, including
       // entries stored before ids carried the custom- prefix.
       onFontAdded?.({ ...installFont(spec), userAdded: true });
     } catch (e) { console.error(e); }

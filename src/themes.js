@@ -1,4 +1,4 @@
-// muse/themes — the Shiki highlighter and every theme registered with it.
+// vmuse/themes — the Shiki highlighter and every theme registered with it.
 
 import { fetchJson } from './util.js';
 
@@ -131,7 +131,7 @@ export async function loadRuntimeTheme(id, raw) {
 
 function variantName(id, italic) {
   const gen = variantGen.get(id) || 0;
-  return `${id}__muse-comments-${italic ? 'italic' : 'normal'}${gen ? `-${gen}` : ''}`;
+  return `${id}__vmuse-comments-${italic ? 'italic' : 'normal'}${gen ? `-${gen}` : ''}`;
 }
 
 export async function ensureCommentStyleTheme(id, italic) {

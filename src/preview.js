@@ -1,4 +1,4 @@
-// muse/preview — preview block renderer with race-condition guard.
+// vmuse/preview — preview block renderer with race-condition guard.
 //
 // CSS-only fast path: the main.js subscriber detects when only `size` and/or
 // `ligatures` changed (font/theme/lang/italic unchanged) and calls

@@ -1,4 +1,4 @@
-// muse/ui/pill — helpers shared by the font and theme sidebars: the remove "×",
+// vmuse/ui/pill — helpers shared by the font and theme sidebars: the remove "×",
 // the search box, roving tab stops, and keyboard navigation between pills.
 
 // Small "×" used to delete a user-added pill (hover/focus-revealed on pointer

@@ -21,7 +21,7 @@ export async function loadLanguageManifests(ids) {
     if (r.status === 'rejected') {
       console.error(r.reason);
     } else if (!isLanguageManifest(r.value)) {
-      console.error(`muse: ignoring malformed manifest data/languages/${ids[i]}.json`);
+      console.error(`vmuse: ignoring malformed manifest data/languages/${ids[i]}.json`);
     } else {
       results.push(r.value);
     }

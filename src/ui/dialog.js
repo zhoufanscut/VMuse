@@ -35,7 +35,7 @@ export function createDialog() {
   header.className = 'upload-dialog-header';
 
   const title = document.createElement('h2');
-  title.id = `muse-dialog-title-${++dialogSeq}`;
+  title.id = `vmuse-dialog-title-${++dialogSeq}`;
   // Focusable (not tabbable) so a dialog can start keyboard focus at its title.
   title.tabIndex = -1;
   dialog.setAttribute('aria-labelledby', title.id);

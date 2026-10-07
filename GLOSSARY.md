@@ -1,10 +1,10 @@
 # GLOSSARY.md
 
-The core vocabulary of the Muse codebase — enough to read the source and `AGENTS.md`
+The core vocabulary of the VMuse codebase — enough to read the source and `AGENTS.md`
 without getting lost. For the architecture, boot order, and the do-not-break rules, go to
 [AGENTS.md](AGENTS.md).
 
-**Mental model.** Muse renders one **preview**: a chosen **font** × **theme** ×
+**Mental model.** VMuse renders one **preview**: a chosen **font** × **theme** ×
 **language**, highlighted by [Shiki](https://shiki.style). Everything selectable is an
 **asset** with a stable **id**, sourced either from the repo (`data/*.json`, listed in the
 **catalog**) or uploaded at runtime (kept in `localStorage`). A pub/sub **state store** holds
@@ -67,8 +67,8 @@ that re-render. That's the whole app.
   change, `localStorage` **and** the hash update together.
 - **URL hash** — the shareable serialization of the setup. The app writes it via
   `history.replaceState` (no feedback loop); a pasted hash applies live via `hashchange`.
-- **localStorage keys** — `muse:state` (selection), `muse:custom-fonts`, `muse:custom-themes`,
-  `muse:found-fonts`. All JSON; corrupt data falls back to defaults rather than crashing.
+- **localStorage keys** — `vmuse:state` (selection), `vmuse:custom-fonts`, `vmuse:custom-themes`,
+  `vmuse:found-fonts`. All JSON; corrupt data falls back to defaults rather than crashing.
 
 ## Rendering
 
@@ -77,7 +77,7 @@ that re-render. That's the whole app.
   `import()` so a CDN failure surfaces as "Failed to start". Runs Shiki's JavaScript regex
   engine, so no Oniguruma WASM is loaded.
 - **Comment-style variant** — the per-theme copy Shiki actually renders with
-  (`<id>__muse-comments-italic` / `-normal`, plus a generation suffix after a re-upload), built
+  (`<id>__vmuse-comments-italic` / `-normal`, plus a generation suffix after a re-upload), built
   by `ensureCommentStyleTheme` so the "Italic comments" toggle wins over the theme's own rule.
 - **Theme name override** — before handing a custom theme to Shiki, do `{ ...raw, name: id }`
   so Shiki, the hash, and `localStorage` agree on the canonical id. **Critical invariant.**

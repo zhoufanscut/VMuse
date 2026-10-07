@@ -90,7 +90,7 @@ function ensureStylesheet(cssUrl) {
   let link = findStylesheet(cssUrl);
   const promise = new Promise((resolve) => {
     const markReady = () => {
-      link.dataset.museFontStylesheetReady = 'true';
+      link.dataset.vmuseFontStylesheetReady = 'true';
       resolve(true);
     };
     const markFailed = () => {
@@ -101,7 +101,7 @@ function ensureStylesheet(cssUrl) {
       resolve(false);
     };
 
-    if (link?.dataset.museFontStylesheetReady === 'true' || link?.sheet) {
+    if (link?.dataset.vmuseFontStylesheetReady === 'true' || link?.sheet) {
       markReady();
       return;
     }
@@ -143,7 +143,7 @@ function releaseFontSources(id) {
   const link = findStylesheet(cssUrl);
   // A <link> removed mid-load fires neither load nor error, which would hang
   // its pending promise; failing it settles that promise and removes the link.
-  if (link && link.dataset.museFontStylesheetReady !== 'true') link.dispatchEvent(new Event('error'));
+  if (link && link.dataset.vmuseFontStylesheetReady !== 'true') link.dispatchEvent(new Event('error'));
   link?.remove();
   stylesheetPromises.delete(cssUrl);
   for (const key of fontPromises.keys()) {
@@ -233,7 +233,7 @@ export async function isFontInstalled(fontName) {
   const src = candidates.map(c => `local(${cssFamily(c)})`).join(', ');
   try {
     // Never added to document.fonts, so the probe can't affect rendering.
-    await new FontFace(`muse-probe-${++probeSeq}`, src).load();
+    await new FontFace(`vmuse-probe-${++probeSeq}`, src).load();
     return true;
   } catch {
     const lower = name.toLowerCase();
@@ -263,7 +263,7 @@ export async function loadFontManifests(ids) {
     if (r.status === 'rejected') {
       console.error(r.reason);
     } else if (!isFontManifest(r.value)) {
-      console.error(`muse: ignoring malformed manifest data/fonts/${ids[i]}.json`);
+      console.error(`vmuse: ignoring malformed manifest data/fonts/${ids[i]}.json`);
     } else {
       results.push(r.value);
     }
@@ -351,14 +351,14 @@ function readJsonArray(key) {
   }
 }
 
-// Validated specs from muse:custom-fonts. Malformed entries are dropped with a
+// Validated specs from vmuse:custom-fonts. Malformed entries are dropped with a
 // console.error instead of aborting the whole restore; entries stored before
 // ids were persisted get the legacy name-derived id.
 export function readStoredCustomFonts() {
   const out = [];
   for (const entry of readJsonArray(CUSTOM_FONTS_KEY)) {
     if (!entry || typeof entry !== 'object' || typeof entry.name !== 'string' || !entry.name.trim()) {
-      console.error('muse: dropping malformed stored font', entry);
+      console.error('vmuse: dropping malformed stored font', entry);
       continue;
     }
     const id = typeof entry.id === 'string' && entry.id ? entry.id : legacyFontId(entry.name);
@@ -367,7 +367,7 @@ export function readStoredCustomFonts() {
   return out;
 }
 
-// Persist an installed font (installFont's result) to muse:custom-fonts. The
+// Persist an installed font (installFont's result) to vmuse:custom-fonts. The
 // upload dialog calls it only after loadWebFont confirmed the font works, so a
 // broken upload never replaces a working one in storage. Returns false when
 // localStorage refused the write.
@@ -409,7 +409,7 @@ export async function checkFontByName(fontName) {
 
   if (!(await isFontInstalled(trimmed))) return null;
 
-  // `custom-` ids belong to dialog uploads (muse:custom-fonts). An installed
+  // `custom-` ids belong to dialog uploads (vmuse:custom-fonts). An installed
   // "Custom Mono" must not land there: it would skip persisting, shadow an
   // upload's pill, and removing it would delete the stored upload.
   let id = legacyFontId(trimmed);

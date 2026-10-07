@@ -77,8 +77,8 @@ export function mountFontsSidebar({ container, manifests, installedFonts }) {
 
   function removeFont(id) {
     removePill(id);
-    // custom- uploads live in muse:custom-fonts, user-added installed fonts in
-    // muse:found-fonts. Both removers are no-ops for an absent id, so calling
+    // custom- uploads live in vmuse:custom-fonts, user-added installed fonts in
+    // vmuse:found-fonts. Both removers are no-ops for an absent id, so calling
     // both also covers custom fonts stored before ids carried the prefix.
     removeCustomFont(id);
     removeFoundFont(id);
@@ -122,8 +122,8 @@ export function mountFontsSidebar({ container, manifests, installedFonts }) {
 
     badges.append(statusBadge, typeBadge);
 
-    // Anything the user added is removable: custom- uploads (muse:custom-fonts)
-    // and fonts added via the Installed tab (muse:found-fonts, flagged userAdded).
+    // Anything the user added is removable: custom- uploads (vmuse:custom-fonts)
+    // and fonts added via the Installed tab (vmuse:found-fonts, flagged userAdded).
     // Repo fonts and auto-detected system fonts are not.
     let removeBtn = null;
     if (font.id.startsWith('custom-') || font.userAdded) {

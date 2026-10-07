@@ -1,4 +1,4 @@
-// muse/main — boot orchestrator
+// vmuse/main — boot orchestrator
 
 import { getState, setState, subscribe, setCatalog, extendCatalog } from './state.js';
 import { getHighlighter, getKnownTheme } from './themes.js';
@@ -91,7 +91,7 @@ try {
   // "Custom …" to found-custom-…), so a custom- id is always a dialog upload.
   function onFontAdded(font, { fresh = false } = {}) {
     if (font.userAdded && !font.id.startsWith('custom-')) {
-      // The Installed tab can name a font Muse already lists (a repo font or an
+      // The Installed tab can name a font VMuse already lists (a repo font or an
       // auto-detected one). Don't shadow that pill or persist a duplicate.
       const shipped = allFonts.find(f => f.id === font.id && !f.userAdded);
       if (shipped) {

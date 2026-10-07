@@ -1,8 +1,8 @@
-# Muse
+# VMuse
 
-**Try it:** https://zhoufanscut.github.io/Muse/
+**Try it:** https://zhoufanscut.github.io/VMuse/
 
-Muse lets you preview a coding font, a color theme, and a programming language together, live in the browser. Pick a font, pick a theme, pick a language — and see how the three actually look as a set before you commit to them in your editor.
+VMuse lets you preview a coding font, a color theme, and a programming language together, live in the browser. Pick a font, pick a theme, pick a language — and see how the three actually look as a set before you commit to them in your editor.
 
 It's a toy I built for myself, because I kept agonizing over editor fonts and themes and wanted a quick way to try combinations without installing anything. If you find it fun or useful too, that makes me happy.
 
@@ -12,7 +12,7 @@ No build step, no `npm install`, no backend — just HTML, a handful of ES modul
 
 - **Mix and match** — any font × theme × language combo, rendered instantly.
 - **Land on a surprise** — your first visit picks a random font and theme, so you start somewhere you didn't expect. Your choices stick after that.
-- **Use fonts you already have** — Muse checks for ~40 common coding fonts on your machine and lists the ones it finds, no download needed.
+- **Use fonts you already have** — VMuse checks for ~40 common coding fonts on your machine and lists the ones it finds, no download needed.
 - **Add your own font** — paste a CSS URL or an `@font-face` snippet in the *Add Font* dialog. Saved locally, just for you.
 - **Add your own theme** — drop in any VSCode theme JSON. Also saved locally.
 - **Tweak the details** — size, ligatures, italic comments.
@@ -60,7 +60,7 @@ A manifest at `data/languages/<id>.json`:
 }
 ```
 
-…and the sample code itself at `data/samples/<id>.txt`. `shikiLang` has to be a language [Shiki knows](https://shiki.style/languages) that its [JavaScript regex engine supports](https://shiki.style/references/engine-js-compat) (Muse doesn't load Oniguruma). A good sample is a small, real program (roughly 50–100 lines) that shows off the language's syntax — not a pile of features glued together.
+…and the sample code itself at `data/samples/<id>.txt`. `shikiLang` has to be a language [Shiki knows](https://shiki.style/languages) that its [JavaScript regex engine supports](https://shiki.style/references/engine-js-compat) (VMuse doesn't load Oniguruma). A good sample is a small, real program (roughly 50–100 lines) that shows off the language's syntax — not a pile of features glued together.
 
 After adding any file, regenerate the catalog:
 

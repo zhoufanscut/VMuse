@@ -17,7 +17,7 @@ function buildSettingsSnippet(font, state, themeId) {
     'editor.fontSize': state.size,
     'editor.fontLigatures': !!state.ligatures,
   };
-  // Muse always forces comment style (italic or upright) via a theme variant;
+  // VMuse always forces comment style (italic or upright) via a theme variant;
   // mirror that with an explicit override so "italic off" also wins over
   // themes whose comments are natively italic. Same scope list as the preview:
   // the `comments` shorthand only covers `comment`, which loses to a theme's
@@ -37,11 +37,11 @@ function buildSettingsSnippet(font, state, themeId) {
 
 function buildPackageJson(themeId, dark) {
   const pkg = {
-    name: `muse-${themeId}`,
-    displayName: `${themeId} (Muse)`,
+    name: `vmuse-${themeId}`,
+    displayName: `${themeId} (VMuse)`,
     // Without a publisher VS Code registers the extension as
-    // "undefined_publisher.muse-…" and warns about it.
-    publisher: 'muse',
+    // "undefined_publisher.vmuse-…" and warns about it.
+    publisher: 'vmuse',
     version: '1.0.0',
     engines: { vscode: '^1.0.0' },
     categories: ['Themes'],
@@ -104,7 +104,7 @@ function cleanTheme(themeId, raw, dark) {
   // read-only with the live theme object and must not be mutated.
   out.name = themeId; // keep name coherent with the filename + extension label
   // A raw theme that never declared its kind would be treated as dark by every
-  // consumer; write down what Muse actually rendered it as.
+  // consumer; write down what VMuse actually rendered it as.
   if (out.type !== 'light' && out.type !== 'dark') out.type = dark ? 'dark' : 'light';
   return out;
 }
@@ -243,7 +243,7 @@ function buildSteps(themeId) {
   // ~/.vscode/extensions, so register it with "Install Extension from
   // Location…" instead. That installs the folder in place: it has to stay.
   const steps = [
-    `Make a folder you'll keep (e.g. muse-${themeId}) — VS Code loads the theme from it, so don't delete it later.`,
+    `Make a folder you'll keep (e.g. vmuse-${themeId}) — VS Code loads the theme from it, so don't delete it later.`,
     `Save the downloaded ${themeId}.json and the package.json above into that folder.`,
     'In VS Code, open the Command Palette (Cmd/Ctrl+Shift+P), run "Developer: Install Extension from Location…", and pick the folder.',
     `Select the theme with Cmd/Ctrl+K Cmd/Ctrl+T → ${themeId}.`,

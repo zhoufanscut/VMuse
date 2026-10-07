@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace muse::samples {
+namespace vmuse::samples {
 
 /* ---------- Compile-time constants ---------- */
 
@@ -97,4 +97,4 @@ void demo() {
     drain(buf);
 }
 
-} // namespace muse::samples
+} // namespace vmuse::samples

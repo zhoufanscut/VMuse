@@ -1,4 +1,4 @@
-// muse/theme-validate — shape and color validation for VS Code theme JSON.
+// vmuse/theme-validate — shape and color validation for VS Code theme JSON.
 //
 // Shiki splats theme colors straight into inline style attributes, so a value
 // like `red;background:url(...)` would CSS-inject. Real VS Code themes only ever

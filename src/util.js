@@ -1,4 +1,4 @@
-// muse/util — shared fetch helpers that fail loudly on HTTP errors.
+// vmuse/util — shared fetch helpers that fail loudly on HTTP errors.
 // Without the res.ok check, a 404 returning an HTML body makes r.json() throw a
 // generic SyntaxError that masquerades as "invalid JSON".
 

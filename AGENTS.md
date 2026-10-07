@@ -6,7 +6,7 @@
 
 ## Project type
 
-Muse is a **static, no-build-step web app** — plain HTML + vanilla ES modules + JSON data files. No `package.json`, no bundler, no transpiler, no test harness, no linter. Dependencies (Shiki) load at runtime from `esm.sh` CDN. Deployed as **GitHub Pages** from the repo root on `main`.
+VMuse is a **static, no-build-step web app** — plain HTML + vanilla ES modules + JSON data files. No `package.json`, no bundler, no transpiler, no test harness, no linter. Dependencies (Shiki) load at runtime from `esm.sh` CDN. Deployed as **GitHub Pages** from the repo root on `main`.
 
 ## Architecture
 
@@ -147,12 +147,12 @@ Runtime-uploaded fonts (URL or `@font-face` via the dialog) also get `custom-`-p
 
 ### localStorage keys
 ```
-muse:state          — current selection (font/theme/lang/size/ligatures/italic)
-muse:custom-fonts   — array of user-uploaded font objects
-muse:custom-themes  — array of {id, theme} for user-uploaded VSCode themes
-muse:found-fonts    — array of fonts detected as installed on this device
+vmuse:state          — current selection (font/theme/lang/size/ligatures/italic)
+vmuse:custom-fonts   — array of user-uploaded font objects
+vmuse:custom-themes  — array of {id, theme} for user-uploaded VSCode themes
+vmuse:found-fonts    — array of fonts detected as installed on this device
 ```
-The names live in `src/keys.js`; import them rather than retyping the strings. All values are JSON. Clearing a key or corrupting it triggers fallback to defaults — the app never crashes on bad localStorage: `muse:state` is normalized on load (types checked, `size` clamped to 10–22), and the readers for the other keys drop malformed entries one at a time instead of aborting the whole restore.
+The names live in `src/keys.js`; import them rather than retyping the strings. All values are JSON. Clearing a key or corrupting it triggers fallback to defaults — the app never crashes on bad localStorage: `vmuse:state` is normalized on load (types checked, `size` clamped to 10–22), and the readers for the other keys drop malformed entries one at a time instead of aborting the whole restore.
 
 ## CI
 

@@ -4,7 +4,7 @@ The theme files in this folder (all `*.json` except `_builtin.json`) are
 third-party works. They are **not** covered by the MIT license in the repo's
 root `LICENSE`; each keeps its upstream license, listed below.
 
-`_builtin.json` is a list of Shiki theme names written for Muse and falls under
+`_builtin.json` is a list of Shiki theme names written for VMuse and falls under
 the root `LICENSE`.
 
 | File | Upstream | License | Our copy |

@@ -94,7 +94,7 @@ export function mountThemesSidebar({ container, themes }) {
     }
     pillMeta.appendChild(swatchStrip);
 
-    // Custom uploads (custom- prefix, stored in muse:custom-themes) are removable.
+    // Custom uploads (custom- prefix, stored in vmuse:custom-themes) are removable.
     let removeBtn = null;
     if (isCustom) {
       removeBtn = createRemoveButton(

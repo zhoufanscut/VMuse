@@ -1,4 +1,4 @@
-// muse/state — selection store with localStorage persistence, URL hash sync, and pub/sub
+// vmuse/state — selection store with localStorage persistence, URL hash sync, and pub/sub
 
 import { STATE_KEY as KEY } from './keys.js';
 
@@ -52,7 +52,7 @@ function parseHash(hash) {
 }
 
 // Known keys with sane types only. Junk persisted by older versions of
-// muse:state (unknown keys, `size: "abc"`, `size: 9999`, `italic: "no"`) would
+// vmuse:state (unknown keys, `size: "abc"`, `size: 9999`, `italic: "no"`) would
 // otherwise reach the slider and the preview, or be re-persisted forever.
 function normalize(s) {
   const out = { ...DEFAULTS };
@@ -130,7 +130,7 @@ function validateAgainstCatalog(s) {
     const list = catalog[kind];
     if (!list || list.includes(patched[key])) continue;
     const next = fallback(list, DEFAULTS[key]);
-    console.error(`muse: unknown ${label} "${patched[key]}", falling back to "${next}"`);
+    console.error(`vmuse: unknown ${label} "${patched[key]}", falling back to "${next}"`);
     patched[key] = next;
   }
   return patched;
